@@ -16,4 +16,4 @@ terraform.tfvars
 terraform.tfvars.json
 terraform/terraform.tfvars
 sourcedata/test.py
-sourcedata/sourcedata.parquet
+sourcedata/yellow_trip_2025-11.parquet
