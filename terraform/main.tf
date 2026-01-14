@@ -1,16 +1,12 @@
-# Provider = Which cloud you're using (AWS)
-provider "aws" {
-  region = "eu-central-1"
-}
 
-# Bronze Layer - Raw ingestion
+# Bronze Layer
 resource "aws_s3_bucket" "bronze" {
-  bucket = "urbanflow-bronze-terraform"  # Change YOUR_NAME
-  
+  bucket = "${var.project_name}-bronze-${var.environment}"
+
   tags = {
     Layer       = "Bronze"
-    Project     = "UrbanFlow"
-    Environment = "dev"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 
@@ -30,6 +26,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "bronze_lifecycle" {
     id     = "transition_to_glacier"
     status = "Enabled"
 
+    # REQUIRED in newer AWS provider versions
+    filter {
+      prefix = "" # apply to all objects
+    }
+
     transition {
       days          = 90
       storage_class = "GLACIER"
@@ -39,21 +40,21 @@ resource "aws_s3_bucket_lifecycle_configuration" "bronze_lifecycle" {
 
 # Silver Layer - Cleaned and processed data
 resource "aws_s3_bucket" "silver" {
-  bucket = "urbanflow-silver-terraform"  # Change YOUR_NAME 
+  bucket = "${var.project_name}-silver-${var.environment}" # Change YOUR_NAME 
 
   tags = {
     Layer       = "Silver"
-    Project     = "UrbanFlow"
-    Environment = "dev"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }
 
 # gold Layer - Aggregated and business-level data
 resource "aws_s3_bucket" "gold" {
-  bucket = "urbanflow-gold-terraform"  # Change YOUR_NAME 
+  bucket = "${var.project_name}-gold-${var.environment}" # Change YOUR_NAME 
   tags = {
     Layer       = "Gold"
-    Project     = "UrbanFlow"
-    Environment = "dev"
+    Project     = var.project_name
+    Environment = var.environment
   }
 }

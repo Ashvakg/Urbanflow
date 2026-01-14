@@ -6,3 +6,5 @@
 crash.log
 crash.*.log
 .terraform.lock.hcl
+echo "terraform/terraform.tfvars" >> .gitignore
+echo "*.tfvars" >> .gitignore
