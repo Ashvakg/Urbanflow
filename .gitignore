@@ -15,5 +15,4 @@ crash.*.log
 terraform.tfvars
 terraform.tfvars.json
 terraform/terraform.tfvars
-sourcedata/test.py
-sourcedata/yellow_tripdata_2025-11.parquet
+sourcedata/
