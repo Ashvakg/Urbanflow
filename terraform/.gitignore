@@ -1,10 +1,17 @@
-
 # Terraform
 .terraform/
 *.tfstate
 *.tfstate.*
 crash.log
 crash.*.log
-.terraform.lock.hcl
-echo "terraform/terraform.tfvars" >> .gitignore
-echo "*.tfvars" >> .gitignore
+
+# Keep provider lock file (recommended)
+# (so DON'T ignore it)
+# .terraform.lock.hcl
+
+# tfvars (secrets)
+*.tfvars
+*.tfvars.json
+terraform.tfvars
+terraform.tfvars.json
+terraform/terraform.tfvars
