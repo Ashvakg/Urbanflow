@@ -1,7 +1,19 @@
-
 # Terraform
-**/.terraform/
+.terraform/
 *.tfstate
 *.tfstate.*
 crash.log
 crash.*.log
+
+# Keep provider lock file (recommended)
+# (so DON'T ignore it)
+# .terraform.lock.hcl
+
+# tfvars (secrets)
+*.tfvars
+*.tfvars.json
+terraform.tfvars
+terraform.tfvars.json
+terraform/terraform.tfvars
+sourcedata/test.py
+sourcedata/sourcedata.parquet
