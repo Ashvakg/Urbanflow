@@ -1,0 +1,101 @@
+services:
+  spark-master:
+    image: docker.io/bitnamilegacy/spark:4.0
+    # platform: linux/amd64   # uncomment if you ever hit arch/manifest issues
+    container_name: spark-master
+    hostname: spark-master
+    user: "0:0"
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_USER=spark
+
+      # Make sure a username exists for JVM / Hadoop UGI
+      - USER=root
+      - LOGNAME=root
+      - HADOOP_USER_NAME=root
+      - HOME=/root
+
+      # avoid hive warehouse issues
+      - SPARK_SUBMIT_OPTS=-Duser.name=root -Dspark.sql.warehouse.dir=/tmp/spark-warehouse
+
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./jobs:/opt/spark-jobs
+      - ./data:/opt/spark-data
+    networks:
+      - spark-net
+
+  spark-worker-1:
+    image: docker.io/bitnamilegacy/spark:4.0
+    # platform: linux/amd64
+    container_name: spark-worker-1
+    hostname: spark-worker-1
+    user: "0:0"
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+      - SPARK_USER=spark
+
+      - USER=root
+      - LOGNAME=root
+      - HADOOP_USER_NAME=root
+      - HOME=/root
+
+      - SPARK_SUBMIT_OPTS=-Duser.name=root -Dspark.sql.warehouse.dir=/tmp/spark-warehouse
+
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    volumes:
+      - ./jobs:/opt/spark-jobs
+      - ./data:/opt/spark-data
+    networks:
+      - spark-net
+
+  spark-worker-2:
+    image: docker.io/bitnamilegacy/spark:4.0
+    # platform: linux/amd64
+    container_name: spark-worker-2
+    hostname: spark-worker-2
+    user: "0:0"
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+      - SPARK_USER=spark
+
+      - USER=root
+      - LOGNAME=root
+      - HADOOP_USER_NAME=root
+      - HOME=/root
+
+      - SPARK_SUBMIT_OPTS=-Duser.name=root -Dspark.sql.warehouse.dir=/tmp/spark-warehouse
+
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    volumes:
+      - ./jobs:/opt/spark-jobs
+      - ./data:/opt/spark-data
+    networks:
+      - spark-net
+
+networks:
+  spark-net:
+    driver: bridge
