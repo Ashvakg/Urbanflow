@@ -17,3 +17,6 @@ terraform.tfvars.json
 terraform/terraform.tfvars
 sourcedata/
 urbanflow/spark/.env
+# Spark / data files
+urbanflow/spark/data/*
+!urbanflow/spark/data/.gitkeep
