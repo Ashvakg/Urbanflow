@@ -20,3 +20,7 @@ urbanflow/spark/.env
 # Spark / data files
 urbanflow/spark/data/*
 !urbanflow/spark/data/.gitkeep
+# Local Spark data
+spark/data/*
+data/*
+!data/.gitkeep
