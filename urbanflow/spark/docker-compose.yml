@@ -1,7 +1,9 @@
 services:
   spark-master:
     image: docker.io/bitnamilegacy/spark:4.0
-    # platform: linux/amd64   # uncomment if you ever hit arch/manifest issues
+    # platform: linux/amd64
+    env_file:
+      - .env
     container_name: spark-master
     hostname: spark-master
     user: "0:0"
@@ -16,6 +18,9 @@ services:
       - HADOOP_USER_NAME=root
       - HOME=/root
 
+      # Tell AWS SDK to load ~/.aws/config too (profiles/region)
+      - AWS_SDK_LOAD_CONFIG=1
+
       # avoid hive warehouse issues
       - SPARK_SUBMIT_OPTS=-Duser.name=root -Dspark.sql.warehouse.dir=/tmp/spark-warehouse
 
@@ -29,12 +34,17 @@ services:
     volumes:
       - ./jobs:/opt/spark-jobs
       - ./data:/opt/spark-data
+
+      # ✅ Mount host AWS credentials/config into container
+      - ~/.aws:/root/.aws:ro
     networks:
       - spark-net
 
   spark-worker-1:
     image: docker.io/bitnamilegacy/spark:4.0
     # platform: linux/amd64
+    env_file:
+      - .env
     container_name: spark-worker-1
     hostname: spark-worker-1
     user: "0:0"
@@ -52,6 +62,8 @@ services:
       - HADOOP_USER_NAME=root
       - HOME=/root
 
+      - AWS_SDK_LOAD_CONFIG=1
+
       - SPARK_SUBMIT_OPTS=-Duser.name=root -Dspark.sql.warehouse.dir=/tmp/spark-warehouse
 
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -61,12 +73,15 @@ services:
     volumes:
       - ./jobs:/opt/spark-jobs
       - ./data:/opt/spark-data
+      - ~/.aws:/root/.aws:ro
     networks:
       - spark-net
 
   spark-worker-2:
     image: docker.io/bitnamilegacy/spark:4.0
     # platform: linux/amd64
+    env_file:
+      - .env
     container_name: spark-worker-2
     hostname: spark-worker-2
     user: "0:0"
@@ -84,6 +99,8 @@ services:
       - HADOOP_USER_NAME=root
       - HOME=/root
 
+      - AWS_SDK_LOAD_CONFIG=1
+
       - SPARK_SUBMIT_OPTS=-Duser.name=root -Dspark.sql.warehouse.dir=/tmp/spark-warehouse
 
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
@@ -93,6 +110,7 @@ services:
     volumes:
       - ./jobs:/opt/spark-jobs
       - ./data:/opt/spark-data
+      - ~/.aws:/root/.aws:ro
     networks:
       - spark-net
 
