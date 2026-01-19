@@ -1,21 +1,30 @@
 import os
+import time
+
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+from pyspark import StorageLevel
 
 # ============================================================
 # CONFIG
 # ============================================================
 
-PARQUET_PATH = os.environ.get(
-    "PARQUET_PATH",
-    "/opt/spark-data/yellow_tripdata_2025-11.parquet"
-)
+# --- BRONZE (READ FROM S3) ---
+S3_BRONZE_BUCKET = os.environ.get("S3_BRONZE_BUCKET", "")
+S3_BRONZE_PREFIX = os.environ.get("S3_BRONZE_PREFIX", "nyc_taxi/yellow/2025/month=11/")
 
+# --- SILVER (WRITE TO S3) ---
 S3_SILVER_BUCKET = os.environ.get("S3_SILVER_BUCKET", "")
 S3_SILVER_PREFIX = os.environ.get("S3_SILVER_PREFIX", "silver/nyc_taxi/yellow/2025-11")
 
+# --- AWS/S3A ---
 S3_REGION = os.environ.get("AWS_REGION", "eu-central-1")
 S3_ENDPOINT = os.environ.get("S3_ENDPOINT", "")  # leave empty for AWS S3
+
+# Small cluster friendly settings (override via env)
+SHUFFLE_PARTITIONS = int(os.environ.get("SHUFFLE_PARTITIONS", "64"))
+DEFAULT_PARALLELISM = int(os.environ.get("DEFAULT_PARALLELISM", "64"))
+MAX_PARTITION_BYTES = int(os.environ.get("MAX_PARTITION_BYTES", str(64 * 1024 * 1024)))  # 64MB
 
 # ============================================================
 # DEDUP + CLEANING
@@ -30,7 +39,13 @@ DEDUP_KEY_COLS = [
     "total_amount",
 ]
 
-CRITICAL_COLS = ["tpep_pickup_datetime", "fare_amount", "total_amount", "PULocationID", "DOLocationID"]
+CRITICAL_COLS = [
+    "tpep_pickup_datetime",
+    "fare_amount",
+    "total_amount",
+    "PULocationID",
+    "DOLocationID",
+]
 
 FILL_DEFAULTS = {
     "passenger_count": 1.0,
@@ -42,7 +57,7 @@ FILL_DEFAULTS = {
 # ============================================================
 
 def log(msg: str) -> None:
-    print(msg)
+    print(msg, flush=True)
 
 def any_null_condition(cols):
     cond = None
@@ -55,53 +70,59 @@ def any_null_condition(cols):
 # MAIN
 # ============================================================
 
+t0 = time.time()
+
 spark = SparkSession.builder.getOrCreate()
 spark.sparkContext.setLogLevel("ERROR")
 
-# Small cluster (2 cores / 4GB total) friendly settings
-spark.conf.set("spark.sql.shuffle.partitions", "8")
-spark.conf.set("spark.default.parallelism", "8")
-spark.conf.set("spark.sql.files.maxPartitionBytes", str(64 * 1024 * 1024))  # 64MB
+# Spark execution tuning for small clusters
+spark.conf.set("spark.sql.shuffle.partitions", str(SHUFFLE_PARTITIONS))
+spark.conf.set("spark.default.parallelism", str(DEFAULT_PARALLELISM))
+spark.conf.set("spark.sql.files.maxPartitionBytes", str(MAX_PARTITION_BYTES))
+
+# Adaptive execution (helps with partition coalescing/skew)
+spark.conf.set("spark.sql.adaptive.enabled", "true")
+spark.conf.set("spark.sql.adaptive.coalescePartitions.enabled", "true")
 
 # ---- S3A CONFIG ----
 hconf = spark.sparkContext._jsc.hadoopConfiguration()
-
 hconf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
 hconf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
 hconf.set("fs.s3a.endpoint.region", S3_REGION)
 hconf.set("fs.s3a.fast.upload", "true")
 
-# IMPORTANT: this environment has fs.s3a.* values like "24h", "5m", "500ms" which can crash
-# NumberFormatException in some Hadoop/S3A builds. Force numeric-only values.
+# numeric-only values (avoid suffix parsing surprises)
 hconf.set("fs.s3a.connection.timeout", "60000")
 hconf.set("fs.s3a.connection.establish.timeout", "60000")
 hconf.set("fs.s3a.socket.timeout", "60000")
-
-hconf.set("fs.s3a.retry.interval", "500")              # 500ms -> 500
-hconf.set("fs.s3a.retry.throttle.interval", "100")     # 100ms -> 100
-hconf.set("fs.s3a.connection.ttl", "300000")           # 5m -> 300000 ms
-hconf.set("fs.s3a.multipart.purge.age", "86400000")    # 24h -> 86400000 ms
-hconf.set("fs.s3a.assumed.role.session.duration", "1800000")  # 30m -> 1800000 ms (safe even if unused)
-
-# keepalivetime is commonly seconds; force numeric seconds (avoid "60s")
+hconf.set("fs.s3a.retry.interval", "500")
+hconf.set("fs.s3a.retry.throttle.interval", "100")
+hconf.set("fs.s3a.connection.ttl", "300000")
+hconf.set("fs.s3a.multipart.purge.age", "86400000")
+hconf.set("fs.s3a.assumed.role.session.duration", "1800000")
 hconf.set("fs.s3a.threads.keepalivetime", "60")
 
 if S3_ENDPOINT:
     hconf.set("fs.s3a.endpoint", S3_ENDPOINT)
     hconf.set("fs.s3a.path.style.access", "true")
 
+# ---- Validate required env vars ----
+if not S3_BRONZE_BUCKET:
+    raise ValueError("Missing S3_BRONZE_BUCKET.")
 if not S3_SILVER_BUCKET:
-    raise ValueError("Missing S3_SILVER_BUCKET. Set it in your .env and restart docker compose.")
+    raise ValueError("Missing S3_SILVER_BUCKET.")
 
+S3_BRONZE_INPUT = f"s3a://{S3_BRONZE_BUCKET}/{S3_BRONZE_PREFIX}".rstrip("/") + "/"
 S3_SILVER_OUTPUT = f"s3a://{S3_SILVER_BUCKET}/{S3_SILVER_PREFIX}".rstrip("/") + "/"
 
 # ============================================================
-# READ PARQUET + NORMALIZE TYPES
+# READ BRONZE + NORMALIZE TYPES
 # ============================================================
 
-df = spark.read.parquet(PARQUET_PATH)
+log(f"Reading Bronze from: {S3_BRONZE_INPUT}")
+df = spark.read.parquet(S3_BRONZE_INPUT)
 
-# Normalize numeric/timestamp types (Spark 4 can be strict about Parquet physical types)
+# Normalize numeric/timestamp types
 df = (
     df
     .withColumn("tpep_pickup_datetime", F.col("tpep_pickup_datetime").cast("timestamp"))
@@ -125,23 +146,23 @@ df = (
 # CLEANING PIPELINE
 # ============================================================
 
-# (Optional) Keep ONE count on small clusters; comment out if you want it faster
-raw_rows = df.count()
-log(f"Raw data: {raw_rows} rows")
+# Dedup: repartition by keys to reduce skew / giant partitions
+df_dedup = (
+    df
+    .repartition(SHUFFLE_PARTITIONS, *[F.col(c) for c in DEDUP_KEY_COLS])
+    .dropDuplicates(DEDUP_KEY_COLS)
+)
 
-# Dedup (heavy shuffle)
-df_dedup = df.repartition(8).dropDuplicates(DEDUP_KEY_COLS)
-
-# Drop critical nulls
+# Remove rows with nulls in critical columns
 crit_null_cond = any_null_condition(CRITICAL_COLS)
 df_nonull = df_dedup.where(~crit_null_cond)
 
-# Fill non-critical nulls
+# Fill defaults (only if columns exist)
 fill_cols_present = {k: v for k, v in FILL_DEFAULTS.items() if k in df_nonull.columns}
 df_filled = df_nonull.fillna(fill_cols_present)
 log(f"Nulls filled: {len(fill_cols_present)} columns -> {list(fill_cols_present.keys())}")
 
-# Business-rule validation
+# Filter invalid rows
 now_ts = F.current_timestamp()
 invalid_cond = (
     (F.col("fare_amount") < 0) |
@@ -159,7 +180,7 @@ invalid_cond = (
 )
 df_valid = df_filled.where(~invalid_cond)
 
-# Metadata columns
+# Data quality score
 had_fill_nulls = F.lit(False)
 if fill_cols_present:
     had_fill_nulls = any_null_condition(list(fill_cols_present.keys()))
@@ -177,35 +198,46 @@ df_clean = (
     .withColumn("data_quality_score", data_quality_score)
 )
 
-log("\nSample of clean data:")
-df_clean.show(10, truncate=False)
+# ============================================================
+# MATERIALIZE ONCE (avoid re-running lineage 3-4 times)
+# ============================================================
 
+df_clean.persist(StorageLevel.DISK_ONLY)
+
+# Trigger materialization early (cheaper than multiple actions later)
+# This is the safest pattern on small clusters.
 clean_rows = df_clean.count()
+
+log("\nSample of clean data:")
+df_clean.limit(10).show(truncate=False)
+
 log("\nFinal statistics:")
-log(f"- Raw rows: {raw_rows}")
-log(f"- Clean rows: {clean_rows}")
+log(f"- Clean rows: {clean_rows:,}")
 log(f"- Writing to SILVER: {S3_SILVER_OUTPUT}")
 
-# Debug: show remaining fs.s3a.* configs that still have suffixes (should be none)
-print("\n=== DEBUG: fs.s3a.* configs with time suffix (ms/s/m/h/d) ===")
-it = hconf.iterator()
-found = False
-while it.hasNext():
-    e = it.next()
-    k = str(e.getKey())
-    v = str(e.getValue())
-    if k.startswith("fs.s3a.") and v.endswith(("ms", "s", "m", "h", "d")):
-        found = True
-        print(f"{k} = {v}")
-if not found:
-    print("None found ✅")
-
+# ============================================================
 # WRITE SILVER
+# ============================================================
+
 (
     df_clean.write
     .mode("overwrite")
     .parquet(S3_SILVER_OUTPUT)
 )
 
-log("Silver write complete.")
+df_clean.unpersist()
+
+# ============================================================
+# SUMMARY
+# ============================================================
+
+duration_sec = time.time() - t0
+duration_min = duration_sec / 60.0
+
+print("\n================ PIPELINE SUMMARY ================\n")
+print(f"✅ Total rows (clean): {clean_rows / 1_000_000:.2f} million")
+print(f"✅ Processing time: {duration_min:.2f} minutes")
+print("✅ Silver write complete.")
+print("\n==================================================\n")
+
 spark.stop()
