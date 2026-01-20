@@ -75,3 +75,8 @@ variable "gold_bucket_name" {
   description = "S3 bucket name for Gold layer"
   type        = string
 }
+
+variable "dlq_bucket_name" {
+  description = "S3 bucket name for DLQ layer"
+  type        = string
+}
