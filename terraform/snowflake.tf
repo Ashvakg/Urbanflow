@@ -46,3 +46,15 @@ resource "snowflake_schema" "analytics" {
   name     = "ANALYTICS"
   comment  = "Analytics tables (dbt output)"
 }
+
+resource "snowflake_schema" "silver" {
+  database = snowflake_database.urbanflow_db.name
+  name     = "SILVER"
+  comment  = "Silver zone tables (s3 output)"
+}
+
+resource "snowflake_schema" "gold" {
+  database = snowflake_database.urbanflow_db.name
+  name     = "GOLD"
+  comment  = "Gold zone tables (dbt output)"
+}
