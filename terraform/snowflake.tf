@@ -10,7 +10,7 @@ resource "snowflake_resource_monitor" "urbanflow_monitor" {
   credit_quota = 10
 
   frequency       = "MONTHLY"
-  start_timestamp = "2026-01-15 00:00"
+  start_timestamp = "2026-02-05 18:00"
 
   notify_triggers = [75]
 
