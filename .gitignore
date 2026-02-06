@@ -16,11 +16,13 @@ terraform.tfvars
 terraform.tfvars.json
 terraform/terraform.tfvars
 sourcedata/
-urbanflow/spark/.env
+Docker/spark/.env
 # Spark / data files
-urbanflow/spark/data/*
+Docker/spark/data/*
 !urbanflow/spark/data/.gitkeep
 # Local Spark data
 spark/data/*
 data/*
 !data/.gitkeep
+# snowflake objects
+/workspaces/Urbanflow/snowflake_objects/ingestion_setup.sql

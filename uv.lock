@@ -1417,7 +1417,6 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "dbt" },
-    { name = "dbt-core" },
     { name = "dbt-snowflake" },
     { name = "pandas" },
 ]
@@ -1425,7 +1424,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "dbt", specifier = ">=1.0.0.40.14" },
-    { name = "dbt-core", specifier = ">=1.11.3" },
     { name = "dbt-snowflake", specifier = ">=1.11.1" },
     { name = "pandas", specifier = ">=2.3.3" },
 ]
