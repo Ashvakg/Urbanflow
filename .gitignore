@@ -18,8 +18,8 @@ terraform/terraform.tfvars
 sourcedata/
 Docker/spark/.env
 # Spark / data files
-Docker/spark/data/*
-!urbanflow/spark/data/.gitkeep
+Docker/spark/data/* 
+!Docker/spark/data/.gitkeep
 # Local Spark data
 spark/data/*
 data/*
