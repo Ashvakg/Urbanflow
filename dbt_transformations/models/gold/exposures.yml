@@ -1,0 +1,15 @@
+version: 2
+
+exposures:
+  - name: executive_city_dashboard
+    type: dashboard
+    maturity: high
+    url: https://ashvakg.github.io/portfolio/
+    description: >
+      Critical dashboard for the NYC Taxi Commission to monitor 
+      driver earnings vs. traffic congestion.
+    owner:
+      name: ashvakg 
+      email: ashvak979@gmail.com
+    depends_on:
+      - ref('mart_congestion_impact')
