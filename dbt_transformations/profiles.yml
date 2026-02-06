@@ -1,0 +1,13 @@
+dbt_transformations: # Must match profile in dbt_project.yml
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: EZPLEYP-XQ98430 # Subdomain before .snowflakecomputing.com
+      user: "{{ env_var('DBT_SNOWFLAKE_USER', 'ASHVAK979') }}"
+      password: "{{ env_var('DBT_SNOWFLAKE_PASSWORD') }}" # Use env vars for security
+      role: ACCOUNTADMIN
+      database: URBANFLOW_DB
+      warehouse: URBANFLOW_WH
+      schema: RAW
+      threads: 1

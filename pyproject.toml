@@ -8,4 +8,5 @@ dependencies = [
     "dbt>=1.0.0.40.14",
     "dbt-snowflake>=1.11.1",
     "pandas>=2.3.3",
+    "pyspark>=4.1.1",
 ]

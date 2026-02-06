@@ -25,4 +25,4 @@ spark/data/*
 data/*
 !data/.gitkeep
 # snowflake objects
-/workspaces/Urbanflow/snowflake_objects/ingestion_setup.sql
+/workspaces/Urbanflow/snowflake_objects/ingestion_setup.sql.env

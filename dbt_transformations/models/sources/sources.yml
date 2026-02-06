@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: raw_data
+    database: URBANFLOW_DB
+    schema: RAW
+    tables:
+      - name: TAXI_DATA_RAW

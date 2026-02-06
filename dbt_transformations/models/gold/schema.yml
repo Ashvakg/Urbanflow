@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: obt_market_optimizer
+    description: "The primary Marketplace Engine for NYC. Tracks Yield, Friction, and Driver Profit."
+    columns:
+      - name: estimated_driver_profit
+        description: "Gross revenue minus estimated operating costs ($0.60/mile)."
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - dbt_utils.accepted_range: # Professional engineering: Profit shouldn't be impossibly high
+              min_value: -5000
+              max_value: 5000
+
+      - name: yield_efficiency_index
+        description: "Revenue normalized by time and distance. Higher = better marketplace health."
+        tests:
+          - not_null
