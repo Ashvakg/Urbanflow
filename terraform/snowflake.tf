@@ -58,3 +58,13 @@ resource "snowflake_schema" "gold" {
   name     = "GOLD"
   comment  = "Gold zone tables (dbt output)"
 }
+
+resource "snowflake_storage_integration" "s3_int" {
+  name    = "S3_INTEGRATION"
+  type    = "EXTERNAL_STAGE"
+  enabled = true
+
+  storage_provider         = "S3"
+  storage_aws_role_arn     = aws_iam_role.snowflake_role.arn
+  storage_allowed_locations = ["s3://urbanflow-silver-dev/"]
+}
